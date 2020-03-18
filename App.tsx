@@ -19,9 +19,25 @@ import {
 } from "react-native";
 
 import { Colors } from "react-native/Libraries/NewAppScreen";
-import { dashboardUrl, loginUrl, property, flat } from "./.env";
+import { dashboardUrl, loginUrl, property, flat } from "./env";
 
-const refreshBill = async (updateBill, updateStatus) => {
+/*
+<div class="col-xs-12 text-center"> 
+  <h5><i class="fa fa-signal fa-fw"></i> U-703 | Meter No : 99597000099</h5> 
+  <hr> <h3>Current Balance: <i class="fa fa-inr fa-fw text-danger">
+  </i> -407.71</h3> 
+  <h5>Last Read @: <i 2020-03-18="" 00:15:20"=""></i> 2020-03-18 00:15:20</h5> <hr> </div>
+*/
+
+// Boolean to avoid people from tapping the refresh button multiple times
+
+let isFetching = false;
+
+// easter egg
+let pressCount = 1;
+
+const refreshBill = async (updateBill, updateStatus, updateFlat) => {
+  isFetching = true;
   const resp = await fetch(loginUrl, {
     method: "POST",
     headers: {
@@ -45,13 +61,28 @@ const refreshBill = async (updateBill, updateStatus) => {
     });
     const dashboardPage = await dashboard.text();
     // console.log(JSON.stringify(dashboardPage));
-    updateBill(
-      dashboardPage
-        .split("<h3>Current Balance:")[1]
-        .split("</h3>")[0]
-        .split("</i>")[1]
-    );
-    updateStatus("");
+    const mainText = dashboardPage
+      .split('<h5><i class="fa fa-signal fa-fw"></i>')[1]
+      .split("</h5> <hr> </div>")[0];
+
+    const flatNumber = mainText.split(" |")[0];
+    const bill = mainText
+      .split("<h3>Current Balance:")[1]
+      .split("</h3>")[0]
+      .split("</i>")[1];
+    const lastRead =
+      "last read: " + mainText.split("Last Read @: <i ")[1].split('"></i>')[0];
+
+    updateBill(bill);
+    // updateBill(
+    //   dashboardPage
+    // .split("<h3>Current Balance:")[1]
+    // .split("</h3>")[0]
+    // .split("</i>")[1]
+    // );
+    updateFlat(flatNumber.replace("-", " "));
+    updateStatus(lastRead);
+    isFetching = false;
   }
 };
 
@@ -61,14 +92,17 @@ const App = () => {
     billText,
     statusContainer,
     statusText,
-    reload
+    reload,
+    flatNumber
   } = styles;
 
-  const [bill, updateBill] = useState("Loading...");
+  const [flat, updateFlat] = useState("");
+
+  const [bill, updateBill] = useState("loading...");
   const [status, updateStatus] = useState("logging in...");
 
   useEffect(() => {
-    refreshBill(updateBill, updateStatus);
+    refreshBill(updateBill, updateStatus, updateFlat);
   }, []);
 
   return (
@@ -80,9 +114,21 @@ const App = () => {
       />
       <SafeAreaView>
         <View style={contentContainer}>
-          <Text style={billText}> {bill}</Text>
+          <Text style={flatNumber}>{flat}</Text>
+
+          <Text style={billText}>{bill}</Text>
           <TouchableOpacity
-            onPress={() => refreshBill(updateBill, updateStatus)}
+            onPress={() => {
+              pressCount++;
+              if (pressCount > 50) {
+                updateStatus("");
+                updateFlat("Congratulations!!!");
+                updateBill(
+                  `You won! \nYou have pressed the refresh button 50 times!\nContact the creator of the app with code IPRESSED50 to get free coffee!`
+                );
+              } else if (!isFetching)
+                refreshBill(updateBill, updateStatus, updateFlat);
+            }}
           >
             <Text style={reload}>&#x21BA;</Text>
           </TouchableOpacity>
@@ -102,14 +148,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#2c3e50"
   },
-  reload: { color: "#16a085", fontSize: 60 },
-  billText: { color: "#95a5a6", fontSize: 60 },
+  reload: { color: "#16a085", marginTop: 30, fontSize: 40 },
+  billText: { color: "#95a5a6", fontSize: 20, textAlign: "center" },
   statusText: { color: "#7f8c8d", fontSize: 20 },
   statusContainer: {
     width: "100%",
     position: "absolute",
     bottom: 50,
     alignItems: "center"
+  },
+  flatNumber: {
+    color: "#cccccc",
+    marginTop: 30,
+    marginBottom: 30,
+    fontSize: 40
   }
 });
 

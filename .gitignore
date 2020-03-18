@@ -60,3 +60,4 @@ buck-out/
 
 # Enviornment URLs
 .env.tsx
+env.tsx
